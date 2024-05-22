@@ -1,0 +1,8 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "/home/pobo/workspace/ensemble/mSDK/tms-microservice-integration-sample/src/Backend/Cargo.toml",
+    "/home/pobo/workspace/rust/msdk-custom-controller/Cargo.toml",
+    "./Cargo.toml",
+    "./Cargo.toml"
+  ]
+}
