@@ -39,9 +39,9 @@ async fn main() -> anyhow::Result<()> {
             info!("saw {}", p.name_any());
             info!("saw {:?}", p.labels());
 
-            for (k, v) in p.labels() {
+            for (k, _v) in p.labels() {
                 if "msdk/ms-name" == k {
-                    let mut s = api::services::sync_ms::SyncService::new();
+                    let _s = api::services::sync_ms::SyncService::new();
                     // s.do_auth().await.unwrap();
                     // s.sync_ms(String::from(v)).await;
                 }
