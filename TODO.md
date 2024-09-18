@@ -3,3 +3,4 @@
 - [ ] vault
 - [ ] temporal
 - [ ] calico
+- [ ] go command makefile on folder and extend importing it in main makefile
