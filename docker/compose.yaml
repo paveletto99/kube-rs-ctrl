@@ -1,0 +1,103 @@
+name: core-services
+
+include:
+  - path:
+      - compose-otel.yaml
+services:
+  # sqlserver:
+  #   image: &sqlImage mcr.microsoft.com/mssql/server:2019-CU19-ubuntu-20.04
+  #   container_name: sqlserver
+  #   restart: unless-stopped
+  #   user: root
+  #   healthcheck:
+  #     test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -Q "SELECT 1" || exit 1
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 10
+  #     start_period: 10s
+  #   # deploy:
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: '0.50'
+  #   #       memory: 50M
+  #   #     reservations:
+  #   #       cpus: '0.25'
+  #   #       memory: 20M
+  #   environment:
+  #     SA_PASSWORD: "SSinRORFpwO88vCT-wNqgQvnH9W3qSQ8P11"
+  #     ACCEPT_EULA: "Y"
+  #   ports:
+  #     - 1439:1433
+  #   volumes:
+  #     - dbdata:/var/opt/mssql/data
+  #   networks:
+  #     - observability_net
+  # sqlserver-init:
+  #   image: *sqlImage
+  #   network_mode: service:sqlserver
+  #   container_name: sqlserver-init
+  #   volumes:
+  #     - ./scripts/db_init.sql:/opt/db_init.sql
+  #   command: bash -c 'until /opt/mssql-tools/bin/sqlcmd -U sa -P SSinRORFpwO88vCT-wNqgQvnH9W3qSQ8P11 -i /opt/db_init.sql; do echo retry && sleep 1; done'
+  #   depends_on:
+  #     - sqlserver
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    container_name: rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq/
+      - rabbitdata:/var/log/rabbitmq
+    networks:
+      - observability_net
+  mongodb:
+    image: mongo:6-jammy
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - dbdata:/data/db
+    networks:
+      - observability_net
+  valkey:
+    container_name: valkey
+    hostname: valkey
+    image: valkey/valkey:7.2.6
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - VALKEY_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    volumes:
+      - ./conf/valkey.conf:/etc/valkey/valkey.conf
+      - ./data:/data
+    command: valkey-server /etc/valkey/valkey.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    ports:
+      - 6379:6379
+    networks:
+      - observability_net
+
+networks:
+  observability_net:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
+  rabbitdata:
+    driver: local
+  cache:
+    driver: local

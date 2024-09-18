@@ -1,1 +1,5 @@
-- [ ] check if service was running 
+- [ ] use valkey with go client on kind https://github.com/hyperspike/valkey-operator || https://artifacthub.io/packages/helm/bitnami/valkey
+- [ ] nats
+- [ ] vault
+- [ ] temporal
+- [ ] calico

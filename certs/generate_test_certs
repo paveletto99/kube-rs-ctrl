@@ -1,0 +1,57 @@
+#!/bin/bash
+###### Generate CA and server and client certificate
+
+# Changes these CN's to match your hosts in your environment if needed.
+SERVER_CA_CN=localhost-ca
+SERVER_CN=localhost
+CLIENT_CN=localhost # Used when doing mutual TLS
+
+######## Generate CA Root ###########
+echo 🔒 Generate CA:
+# openssl req -x509 -new -newkey rsa:4096 -nodes \
+#             -keyout ca.key \
+#             -out ca.pem \
+#             -days 3650 \
+#             -subj "/C=GB/CN=${SERVER_CA_CN}" \
+#             -addext "subjectAltName = DNS:foo.co.uk" \
+#             -addext "certificatePolicies = 1.2.3.4" \
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -subj "/C=IN/ST=KA/L=BL/O=MyOrg, Inc./CN=MyOrg Root CA" -out ca.crt
+
+# Create a server CSR with 'localhost' in CN:
+openssl req -newkey rsa:4096 -nodes -keyout server.key -subj "/C=IN/ST=KA/L=BL/O=MyOrg, Inc./CN=localhost" -out server.csr
+
+# Sign the server cert by CA and pass the subjectAltName when you signing the server certificate.
+# openssl x509 -req -extfile <(printf "subjectAltName=DNS:localhost") -days 365 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt
+
+######## Generate the Server Certificate ########
+
+echo 🔒 Generate server key:
+openssl genrsa -out server.key.rsa 4096
+openssl pkcs8 -topk8 -in server.key.rsa -out server.key -nocrypt
+rm server.key.rsa
+
+echo Generate server certificate:
+openssl req -new -key server.key -out server.csr \
+            -subj "/C=IN/ST=KA/L=BL/O=MyOrg, Inc.CN=${SERVER_CN}" \
+            -addext "subjectAltName = DNS:foo.co.uk" \
+            -addext "certificatePolicies = 1.2.3.4" \
+
+openssl x509 -req -extfile <(printf "subjectAltName=DNS:localhost") -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.pem -days 365
+rm server.csr
+
+######## Generate the Client certification ########
+
+echo 🔒 Generate client key:
+openssl genrsa -out client.key.rsa 4096
+openssl pkcs8 -topk8 -in client.key.rsa -out client.key -nocrypt
+rm client.key.rsa
+
+echo Generate client certificate:
+openssl req -new -key client.key -out client.csr \
+            -subj "/C=IN/ST=KA/L=BL/O=MyOrg, Inc./CN=${CLIENT_CN}" \
+            -addext "subjectAltName = DNS:foo.co.uk" \
+            -addext "certificatePolicies = 1.2.3.4" \
+
+openssl x509 -req -extfile <(printf "subjectAltName=DNS:localhost") -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out client.pem -days 365
+rm client.csr

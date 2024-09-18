@@ -1,0 +1,17 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+metadata:
+  name: rust-ctrl
+build:
+  artifacts:
+    - image: localhost:5000/rust-ctrl
+      # - image: host.docker.internal:5000/rust-ctrl
+      context: .
+      docker:
+        dockerfile: Dockerfile
+deploy:
+  kubectl:
+    manifests:
+      - kubernetes/rust-ctrl-rbac.yaml
+      - kubernetes/rust-ctrl-deploy.yaml
+      - kubernetes/rust-ctrl-srv.yaml

@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+
+set -o errexit
+
+declare -r KIND_NETWORK_NAME=$1;
+declare -r KIND_CLUSTER_NAME=$2;
+declare -r KIND_KUBECONFIG_DIR=$3;
+declare -r KIND_KUBECONFIG_FILE=$4;
+declare -r KIND_NODE_IMAGE=$5;
+declare -r KIND_REGISTRY_NAME=$6;
+declare -r KIND_REGISTRY_PORT=$7;
+declare -r KIND_KUBERNETES_ADMIN_USER=$8;
+declare -r KIND_HOST_MOUNT_PATH=$9;
+declare -r CRI_ENGINE=${10};
+
+[ -n "${KIND_NETWORK_NAME}" ] || { echo "Invalid KIND_NETWORK_NAME" && exit 1; }
+[ -n "${KIND_CLUSTER_NAME}" ] || { echo "Invalid KIND_CLUSTER_NAME" && exit 1; }
+[ -n "${KIND_KUBECONFIG_DIR}" ] || { echo "Invalid KIND_KUBECONFIG_DIR" && exit 1; }
+[ -n "${KIND_KUBECONFIG_FILE}" ] || { echo "Invalid KIND_KUBECONFIG_FILE" && exit 1; }
+[ -n "${KIND_NODE_IMAGE}" ] || { echo "Invalid KIND_NODE_IMAGE" && exit 1; }
+[ -n "${KIND_REGISTRY_NAME}" ] || { echo "Invalid KIND_REGISTRY_NAME" && exit 1; }
+[ -n "${KIND_REGISTRY_PORT}" ] || { echo "Invalid KIND_REGISTRY_PORT" && exit 1; }
+[ -n "${KIND_KUBERNETES_ADMIN_USER}" ] || { echo "Invalid KIND_KUBERNETES_ADMIN_USER" && exit 1; }
+[ -n "${KIND_HOST_MOUNT_PATH}" ] || { echo "Invalid KIND_HOST_MOUNT_PATH" && exit 1; }
+[ -n "${CRI_ENGINE}" ] || { echo "Invalid CRI_ENGINE" && exit 1; }
+
+KIND_REGISTRY_RUNNING="$(${CRI_ENGINE} container inspect -f '{{.State.Running}}' "${KIND_REGISTRY_NAME}" 2>/dev/null || true)"
+
+if [ "${KIND_REGISTRY_RUNNING}" != 'true' ]; then
+    ${CRI_ENGINE} run -d --net=kind --restart=always -p "127.0.0.1:${KIND_REGISTRY_PORT}:5000" --name "${KIND_REGISTRY_NAME}" registry:2
+fi
+
+mkdir -p ${KIND_KUBECONFIG_DIR}
+
+# Create a cluster with the local registry enabled in containerd and an Ingress setup
+cat <<EOF | kind create cluster --kubeconfig ${KIND_KUBECONFIG_FILE} --image="${KIND_NODE_IMAGE}" --name="${KIND_CLUSTER_NAME}" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${KIND_REGISTRY_PORT}"]
+    endpoint = ["http://${KIND_REGISTRY_NAME}:${KIND_REGISTRY_PORT}"]
+nodes:
+- role: control-plane
+  extraMounts:
+  - hostPath: ${KIND_HOST_MOUNT_PATH}/mssql
+    containerPath: /opt/sqlserver
+  - hostPath: ${KIND_HOST_MOUNT_PATH}/sync
+    containerPath: /opt/srvsync_data
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30000
+    hostPort: 30000
+    protocol: TCP
+  - containerPort: 33865
+    hostPort: 33865
+    protocol: TCP
+EOF
+
+echo
+echo "Configuring the kubernetes Cluster 📐"
+echo
+
+# connect the registry to the cluster network (the network may already be connected)
+# ${CRI_ENGINE} network connect "${KIND_NETWORK_NAME}" "${KIND_REGISTRY_NAME}" || true
+
+export KUBECONFIG=${KIND_KUBECONFIG_FILE}
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "localhost:${KIND_REGISTRY_PORT}"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
+
+# echo "Installing the Kubernetes Dashboard UI 🖼️"
+#### Deploy the Dashboard UI (https://github.com/kubernetes/dashboard/releases)
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+
+
+# # Creating a ServiceAccount user with cluster-admin RoleBinding for accessing the Dashboard
+# cat <<EOF | kubectl apply -f -
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: ${KIND_KUBERNETES_ADMIN_USER}
+#   namespace: kubernetes-dashboard
+
+# ---
+
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: ${KIND_KUBERNETES_ADMIN_USER}
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: cluster-admin
+# subjects:
+# - kind: ServiceAccount
+#   name: ${KIND_KUBERNETES_ADMIN_USER}
+#   namespace: kubernetes-dashboard
+# EOF
+
+
+echo "Installing cert-manager 🔒"
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.5/cert-manager.yaml
+kubectl rollout status -n cert-manager deployment/cert-manager
+
+echo "Installing the KIND Ingress Controller 🚪"
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
+# FIXME https://github.com/kubernetes/kubernetes/issues/83242
+# kubectl wait --namespace ingress-nginx \
+#   --for=condition=ready pod \
+#   --selector=app.kubernetes.io/component=controller \
+#   --timeout=90s
+
+#echo "Installing ARGOCD 👽📦"
+#### Install ARGOCD
+# kubectl create ns argocd
+# kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# FIXME https://github.com/kubernetes/kubernetes/issues/83242
+# kubectl wait --namespace argocd \
+#  --for=condition=ready pod \
+#  --selector=app.kubernetes.io/name=argocd-application-controller \
+#  --timeout=90s
+
+#echo "Installing Pyroscope over eBPF 🔥"
+# // TODO
+# kubectl create ns pyro
+# kubectl apply -n pyro
+
+# helm install pyroscope-ebpf pyroscope-io/pyroscope-ebpf --namespace=
+
+#echo "Installing Jeager Tracing Operator 📈"
+#kubectl create namespace dev
+
+#cat <<EOF | kubectl apply -f -
+#kind: RoleBinding
+#apiVersion: rbac.authorization.k8s.io/v1
+#metadata:
+#  name: jaeger-operator-in-myproject
+#  namespace: dev
+#subjects:
+#- kind: ServiceAccount
+#  name: jaeger-operator
+#  namespace: observability
+#roleRef:
+#  kind: Role
+#  name: jaeger-operator
+#  apiGroup: rbac.authorization.k8s.io
+#EOF
+
+#kubectl create namespace observability # <1>
+#kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.57.0/jaeger-operator.yaml -n observability # <2>
+# # kubectl logs -l app.kubernetes.io/instance=simplest -c jaeger
+# echo "-------------------------------------------"
+# kubectl rollout status -n observability deployment/jaeger-operator
+# echo "-------------------------------------------"
+
+# kubectl apply -n observability -f - <<EOF
+# apiVersion: jaegertracing.io/v1
+# kind: Jaeger
+# metadata:
+#   name: simplest
+# EOF

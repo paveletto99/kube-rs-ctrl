@@ -1,0 +1,87 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+        auth:
+          authenticator: basicauth/server
+        cors:
+          allowed_origins: ["*"]
+          allowed_headers: ["*"]
+  # Collect own metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "otel-collector"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["0.0.0.0:8888"]
+extensions:
+  health_check:
+  pprof:
+    endpoint: "localhost:1777"
+    block_profile_fraction: 3
+    mutex_profile_fraction: 5
+  zpages:
+    endpoint: :55679
+  basicauth/server:
+    htpasswd:
+      inline: |
+        username:password
+exporters:
+  # azuremonitor:
+  #   endpoint: "https://dc.services.visualstudio.com/v2/track"
+  #   instrumentation_key: "<INSTRUMENTATION-KEY>"
+  #   # maxbatchsize is the maximum number of items that can be
+  #   # queued before calling to the configured endpoint
+  #   maxbatchsize: 100
+  #   # maxbatchinterval is the maximum time to wait before calling
+  #   # the configured endpoint.
+  #   maxbatchinterval: 10s
+  otlphttp:
+    endpoint: http://loki:3100/otlp
+    # default_labels_enabled:
+    #   exporter: false
+    #   job: true
+    # headers:
+    #   "X-Scope-OrgID": 🪅
+  otlp:
+    endpoint: jaeger-all-in-one:4317
+    # endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      label1: value1
+  debug:
+    verbosity: detailed
+processors:
+  batch:
+  resource:
+    attributes:
+      - key: env
+        value: "🐳"
+        action: insert
+  filter/healthz:
+    error_mode: ignore
+    traces:
+      span:
+        - 'name == "/healthz/live"'
+        - 'name == "/healthz/ready"'
+service:
+  extensions: [basicauth/server, pprof, zpages, health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, filter/healthz]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [batch]
+      exporters: [prometheus]
+    # ⚠️ not supported by frontend
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp, debug]

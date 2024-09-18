@@ -4,30 +4,33 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::api::ListParams;
 use kube::{
     api::{Api, ResourceExt},
-    client::ConfigExt,
+    // client::ConfigExt,
     runtime::{watcher, WatchStreamExt},
-    Client, Config,
+    Client,
+    // Config,
 };
 use tracing::*;
 mod api;
+use std::{thread, time::Duration};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
+    thread::sleep(Duration::from_secs(10));
 
-    let config = Config::infer().await?;
+    // let config = Config::infer().await?;
     let client = Client::try_default().await?;
 
-    let https = config.openssl_https_connector()?;
-    let service = tower::ServiceBuilder::new()
-        .layer(config.base_uri_layer())
-        .service(hyper::Client::builder().build(https));
-    kube::Client::new(service, config.default_namespace);
+    // let https = config.openssl_https_connector()?;
+    // let service = tower::ServiceBuilder::new()
+    //     .layer(config.base_uri_layer())
+    //     .service(hyper::Client::builder().build(https));
+    // kube::Client::new(service, config.default_namespace);
 
-    let api = Api::<Deployment>::namespaced(client.clone(), "dev");
-    let pods = Api::<Pod>::namespaced(client, "dev");
+    let api = Api::<Deployment>::namespaced(client.clone(), "default");
+    let pods = Api::<Pod>::namespaced(client, "default");
 
-    let lp = ListParams::default().labels("msdk/ms-name=CMPS"); // for this app only
+    let lp = ListParams::default().labels("owner/ms-name=CMPS"); // for this app only
     for p in pods.list(&lp).await? {
         info!("Found Pod: {}", p.name_any());
         info!("Status: {:?}", p.status.unwrap().container_statuses);
@@ -39,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
             info!("saw {}", p.name_any());
             info!("saw {:?}", p.labels());
 
-            for (k, _v) in p.labels() {
+            for k in p.labels().keys() {
                 if "msdk/ms-name" == k {
                     let _s = api::services::sync_ms::SyncService::new();
                     // s.do_auth().await.unwrap();

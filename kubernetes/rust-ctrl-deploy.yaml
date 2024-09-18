@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-ctrl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rust-ctrl
+  template:
+    metadata:
+      labels:
+        app: rust-ctrl
+    spec:
+      serviceAccountName: rust-ctrl-sa
+      containers:
+        - name: rust-ctrl
+          image: localhost:5000/rust-ctrl:latest
+          # image: host.docker.internal:5000/rust-ctrl:latest
+          ports:
+            - containerPort: 8080
