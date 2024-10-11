@@ -7,7 +7,7 @@ KIND_KUBECONFIG_DIR=${HOME}/.kube
 KIND_KUBECONFIG_FILE=${KIND_KUBECONFIG_DIR}/kind-kubernetes-clusters-${KIND_CLUSTER_NAME}.kubeconfig
 KIND_KUBERNETES_ADMIN_USER=admin-user
 KIND_NETWORK_NAME=kind
-KIND_NODE_IMAGE=kindest/node:v1.30.4@sha256:976ea815844d5fa93be213437e3ff5754cd599b040946b5cca43ca45c2047114
+KIND_NODE_IMAGE=kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
 KIND_REGISTRY_NAME=kind-registry
 KIND_REGISTRY_PORT=5000
 WINHOME=$(shell ./tools/scripts/get_win_home.sh)
@@ -63,6 +63,10 @@ undeploy-observability-k8s:
 	kubectl delete -f kubernetes/12-grafana.yaml
 	kubectl delete -f kubernetes/14-jaeger-svc.yaml
 	kubectl delete ns observability
+
+# CI 🚀
+run-pipe:
+	go run ci/main.go
 
 # K6 ##################
 # IN_HAR=${PWD}/tests/k6/in/new-recording_121959.har

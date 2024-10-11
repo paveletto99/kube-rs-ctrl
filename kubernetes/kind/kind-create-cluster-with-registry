@@ -68,6 +68,8 @@ nodes:
   - containerPort: 33865
     hostPort: 33865
     protocol: TCP
+- role: worker
+- role: worker
 EOF
 
 echo
@@ -130,6 +132,12 @@ kubectl rollout status -n cert-manager deployment/cert-manager
 echo "Installing the KIND Ingress Controller 🚪"
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 
+echo "Install metrics server 📈"
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch -n kube-system deployment metrics-server --type=json \\n  -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+
+echo "Add Taint to control-plane"
+kubectl taint nodes -l node-role.kubernetes.io/control-plane node-role.kubernetes.io/control-plane=:NoSchedule
 # FIXME https://github.com/kubernetes/kubernetes/issues/83242
 # kubectl wait --namespace ingress-nginx \
 #   --for=condition=ready pod \

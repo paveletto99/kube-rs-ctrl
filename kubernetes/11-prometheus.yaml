@@ -389,7 +389,7 @@ spec:
       serviceAccountName: prometheus
       containers:
         - name: prometheus
-          image: prom/prometheus
+          image: prom/prometheus:v3.0.0-beta.0@sha256:064b379ac7f9d34c5b9b6cdd8c68a5706603270c0594bdefed67cd85c3b290be
           args:
             - "--web.enable-remote-write-receiver"
             - "--config.file=/etc/prometheus/prometheus.yml"
