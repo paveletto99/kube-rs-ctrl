@@ -6,11 +6,10 @@ WORKDIR ko-kind-service
 # copy code from local dir to container
 COPY . ./
 
-RUN go build -o /ko-kind-service cmd/main.go
+RUN CGO_ENABLED=0 go build -o /ko-kind-service cmd/main.go
 
 #-------------- Deploy ----------
-FROM gcr.io/distroless/base-debian12
-# https://github.com/GoogleContainerTools/distroless
+FROM gcr.io/distroless/static-debian12
 
 WORKDIR /
 

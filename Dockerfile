@@ -1,5 +1,5 @@
 # Stage 1: Build the Rust application
-FROM rust:1.81 as builder
+FROM rust:1.82 as builder
 
 WORKDIR /usr/src/app
 
@@ -19,7 +19,7 @@ COPY . .
 RUN cargo build --release
 
 # Stage 2: Create a minimal runtime image
-FROM gcr.io/distroless/cc
+FROM gcr.io/distroless/cc-debian12
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /usr/src/app/target/release/k8s-custom-controller /k8s-custom-controller
