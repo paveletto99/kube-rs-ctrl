@@ -36,13 +36,24 @@ kind-create-cluster:
 		if [ -f "${KIND_CREATE_CLUSTER_SCRIPT}" ]; then
 			$(KIND_CREATE_CLUSTER_SCRIPT) ${KIND_NETWORK_NAME} ${KIND_CLUSTER_NAME} ${KIND_KUBECONFIG_DIR} ${KIND_KUBECONFIG_FILE} ${KIND_NODE_IMAGE} ${KIND_REGISTRY_NAME} ${KIND_REGISTRY_PORT} ${KIND_KUBERNETES_ADMIN_USER} ${KIND_HOST_MOUNT_PATH} $(CRI_ENGINE)
 		else
-			( echo "${KIND_CREATE_CLUSTER_SCRIPT} not Found!" && exit 1; )
+			( echo "${KIND_CREATE_CLUSTER_SCRIPT} not Found!" && exit 1 ; )
 		fi
 	)
+
+create-cilium-cluster:
+	kind create cluster --name cilium-playground \
+		--config=./kubernetes/kind/kind-cilium.yaml \
+		--kubeconfig  ${KIND_KUBECONFIG_DIR}/kind-cilium-play.kubeconfig
+	export KUBECONFIG=${KIND_KUBECONFIG_DIR}/kind-cilium-play.kubeconfig
+	cilium install
+	cilium status --wait
+	cilium hubble enable --ui
+	cilium connectivity test --request-timeout 30s --connect-timeout 10s
 
 get-cluster-token:
 # kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
 	kubectl -n kubernetes-dashboard describe secret $$(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $$1}') | grep token: | awk -F 'token:' '{print $$2}' | sed 's/ //g'
+
 
 kind-delete-cluster:
 	$(CRI_ENGINE) network disconnect "${KIND_NETWORK_NAME}" "${KIND_REGISTRY_NAME}"
