@@ -144,10 +144,13 @@ kubectl taint nodes -l node-role.kubernetes.io/control-plane node-role.kubernete
 #   --selector=app.kubernetes.io/component=controller \
 #   --timeout=90s
 
+# Install Opentelemetry operator 🔭🔭🔭
+kubectl --context kind-otel-target-allocator-talk apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.102.0/opentelemetry-operator.yaml
+
 #echo "Installing ARGOCD 👽📦"
 #### Install ARGOCD
-# kubectl create ns argocd
-# kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl create ns argo
+kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # FIXME https://github.com/kubernetes/kubernetes/issues/83242
 # kubectl wait --namespace argocd \
@@ -194,3 +197,10 @@ kubectl taint nodes -l node-role.kubernetes.io/control-plane node-role.kubernete
 # metadata:
 #   name: simplest
 # EOF
+
+# Prometheus
+
+# Install just ServiceMonitor and PodMonitor
+# NOTE: This GH issue put me on the right track: https://github.com/open-telemetry/opentelemetry-operator/issues/1811#issuecomment-1584128371
+# kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.74.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+# kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.74.0/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml

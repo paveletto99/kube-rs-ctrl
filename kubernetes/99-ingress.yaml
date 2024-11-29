@@ -97,6 +97,39 @@ spec:
                   number: 9090
 
 ---
+# https://kubernetes.io/docs/concepts/services-networking/ingress/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argo-ingress
+  namespace: argo
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: argo.localhost
+    http:
+      paths:
+      - path: /wf
+        pathType: Prefix
+        backend:
+          service:
+            name: argo-server
+            port:
+              number: 2746
+      - path: /cd
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
+---
+
+
+---
 #  TODO: update with cert-manager
 # apiVersion: networking.k8s.io/v1
 # kind: Ingress

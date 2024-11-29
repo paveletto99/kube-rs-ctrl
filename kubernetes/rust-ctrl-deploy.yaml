@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rust-ctrl-app
+  namespace: dev
   labels:
     app: rust-ctrl-app
 spec:
@@ -13,6 +14,7 @@ spec:
     metadata:
       labels:
         app: rust-ctrl-app
+        namespace: dev
     spec:
       serviceAccountName: rust-ctrl-sa
       containers:
@@ -29,6 +31,8 @@ spec:
               memory: "1Gi"
               cpu: "2" # Set CPU limit to 2 cores
           env:
+            - name: SCYLLA_URI
+              value: "scylla-external"
             - name: RUST_LOG
               value: "info,tokio=debug"
             - name: CPU_LIMIT

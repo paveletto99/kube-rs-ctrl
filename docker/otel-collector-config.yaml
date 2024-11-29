@@ -2,20 +2,23 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
-        auth:
-          authenticator: basicauth/server
-        cors:
-          allowed_origins: ["*"]
-          allowed_headers: ["*"]
+        endpoint:
+          0.0.0.0:4318
+          # auth:
+          #authenticator: basicauth/server
+        #cors:
+        #allowed_origins: ["*"]
+        #allowed_headers: ["*"]
   # Collect own metrics
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: "otel-collector"
-          scrape_interval: 10s
-          static_configs:
-            - targets: ["0.0.0.0:8888"]
+  # prometheus:
+  #   config:
+  #     scrape_configs:
+  #       - job_name: "otel-collector"
+  #         scrape_interval: 10s
+  #         static_configs:
+  #           - targets: ["0.0.0.0:8888"]
 extensions:
   health_check:
   pprof:
@@ -28,34 +31,6 @@ extensions:
     htpasswd:
       inline: |
         username:password
-exporters:
-  # azuremonitor:
-  #   endpoint: "https://dc.services.visualstudio.com/v2/track"
-  #   instrumentation_key: "<INSTRUMENTATION-KEY>"
-  #   # maxbatchsize is the maximum number of items that can be
-  #   # queued before calling to the configured endpoint
-  #   maxbatchsize: 100
-  #   # maxbatchinterval is the maximum time to wait before calling
-  #   # the configured endpoint.
-  #   maxbatchinterval: 10s
-  otlphttp:
-    endpoint: http://loki:3100/otlp
-    # default_labels_enabled:
-    #   exporter: false
-    #   job: true
-    # headers:
-    #   "X-Scope-OrgID": 🪅
-  otlp:
-    endpoint: jaeger-all-in-one:4317
-    # endpoint: tempo:4317
-    tls:
-      insecure: true
-  prometheus:
-    endpoint: "0.0.0.0:8889"
-    const_labels:
-      label1: value1
-  debug:
-    verbosity: detailed
 processors:
   batch:
   resource:
@@ -69,19 +44,64 @@ processors:
       span:
         - 'name == "/healthz/live"'
         - 'name == "/healthz/ready"'
+  memory_limiter:
+    # 80% of maximum memory up to 2G
+    limit_mib: 1500
+    # 25% of limit up to 2G
+    spike_limit_mib: 512
+    check_interval: 5s
+exporters:
+  # azuremonitor:
+  #   endpoint: "https://dc.services.visualstudio.com/v2/track"
+  #   instrumentation_key: "<INSTRUMENTATION-KEY>"
+  #   # maxbatchsize is the maximum number of items that can be
+  #   # queued before calling to the configured endpoint
+  #   maxbatchsize: 100
+  #   # maxbatchinterval is the maximum time to wait before calling
+  #   # the configured endpoint.
+  #   maxbatchinterval: 10s
+  # otlphttp:
+  #   endpoint: http://loki:3100/otlp
+  # default_labels_enabled:
+  #   exporter: false
+  #   job: true
+  # headers:
+  #   "X-Scope-OrgID": 🪅
+  otlp:
+    endpoint: jaeger-all-in-one:4317
+    # endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      label1: value1
+  prometheusremotewrite:
+    endpoint: prometheus:9090/api/v1/write
+    add_metric_suffixes: false
+    tls:
+      insecure_skip_verify: true
+    remote_write_queue:
+      enabled: true
+      # #default 10000
+      # queue_size: 100000
+      # #default 5
+      # num_consumers: 1000
+  debug:
+    verbosity: detailed
 service:
   extensions: [basicauth/server, pprof, zpages, health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch, filter/healthz]
-      exporters: [otlp, debug]
+      processors: [memory_limiter, batch, filter/healthz]
+      exporters: [otlp]
     metrics:
-      receivers: [otlp, prometheus]
-      processors: [batch]
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
       exporters: [prometheus]
     # ⚠️ not supported by frontend
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp, debug]
+      exporters: [debug]

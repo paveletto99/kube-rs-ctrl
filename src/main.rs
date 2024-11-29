@@ -14,9 +14,10 @@ use tracing::*;
 mod api;
 use std::env;
 use std::{thread, time::Duration};
+use scylla::{Session,SessionBuilder};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+//#[tokio::main]
+fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Read the TOKIO_WORKER_THREADS environment variable
@@ -78,7 +79,21 @@ async fn main() -> anyhow::Result<()> {
 // }
 //
 //
-async fn real_main() -> anyhow::Result<()> {
+async fn real_main() -> anyhow::Result<()>  {
+    // connect to scylla
+    let uri = std::env::var("SCYLLA_URI").unwrap_or_else(|_| "127.0.0.1:9042".to_string());
+
+    let session: Session = SessionBuilder::new().known_node(uri).build().await?;
+
+    // Query rows from the table and print them
+    let mut iter = session.query_iter("SELECT first_name FROM catalog.mutant_data", &[])
+        .await?
+        .into_typed::<(String,)>();
+    while let Some(read_row) = iter.try_next().await? {
+        println!("Read a value from row: {}", read_row.0);
+    }
+
+
     // let config = Config::infer().await?;
     let client = Client::try_default().await?;
 

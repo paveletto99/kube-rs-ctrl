@@ -1,0 +1,33 @@
+# https://github.com/scylladb/scylla-code-samples/blob/master/Rust_Scylla_Driver/chat/src/main.rs
+services:
+  scylladb:
+    hostname: scylla
+    container_name: scylla-node1
+    image: scylladb/scylla
+    networks:
+      web:
+        ipv4_address: 10.10.10.1
+    environment:
+      - DC1=DC1
+      - SEEDS=10.10.10.1
+      - CQLSH_HOST=10.10.10.1
+    ports:
+      - "9042:9042"
+    volumes:
+      - "./scylla/mutant-data.txt:/mutant-data.txt"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "sh -c $(curl -s -X GET --header 'Accept: application/json' 'http://localhost:10000/storage_service/native_transport')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  web:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/16

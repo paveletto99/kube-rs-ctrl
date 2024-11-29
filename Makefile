@@ -22,7 +22,6 @@ CRI_ENGINE=docker
 # export KIND_EXPERIMENTAL_PROVIDER=podman
 export KUBECONFIG=${KIND_KUBECONFIG_FILE}
 
-.PHONY: kind-create-cluster kind-delete-cluster get-cluster-token deploy-k8s undeploy-k8s kube-linter ks
 .SILENT: kind-create-cluster kind-delete-cluster get-cluster-token deploy-k8s undeploy-k8s kube-linter ks
 .ONESHELL: kind-create-cluster kind-delete-cluster deploy-k8s undeploy-k8s ks
 
@@ -39,6 +38,7 @@ kind-create-cluster:
 			( echo "${KIND_CREATE_CLUSTER_SCRIPT} not Found!" && exit 1 ; )
 		fi
 	)
+.PHONY: kind-create-cluster
 
 create-cilium-cluster:
 	kind create cluster --name cilium-playground \
@@ -49,15 +49,17 @@ create-cilium-cluster:
 	cilium status --wait
 	cilium hubble enable --ui
 	cilium connectivity test --request-timeout 30s --connect-timeout 10s
+.PHONY: create-cilium-cluster
 
 get-cluster-token:
 # kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"
 	kubectl -n kubernetes-dashboard describe secret $$(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $$1}') | grep token: | awk -F 'token:' '{print $$2}' | sed 's/ //g'
-
+.PHONY: get-cluster-token
 
 kind-delete-cluster:
 	$(CRI_ENGINE) network disconnect "${KIND_NETWORK_NAME}" "${KIND_REGISTRY_NAME}"
 	kind delete cluster --name ${KIND_CLUSTER_NAME}
+.PHONY: kind-delete-cluster
 
 deploy-observability-k8s:
 	kubectl create ns observability
@@ -66,6 +68,7 @@ deploy-observability-k8s:
 	kubectl apply -f kubernetes/12-grafana.yaml
 	kubectl apply -f kubernetes/14-jaeger-svc.yaml
 	kubectl apply -f kubernetes/clusters/tms-dev/99-ingress.yaml
+.PHONY: deploy-observability-k8s
 
 undeploy-observability-k8s:
 	kubectl delete -f kubernetes/99-ingress.yaml
@@ -74,10 +77,25 @@ undeploy-observability-k8s:
 	kubectl delete -f kubernetes/12-grafana.yaml
 	kubectl delete -f kubernetes/14-jaeger-svc.yaml
 	kubectl delete ns observability
+.PHONY: undeploy-observability-k8s
 
 # CI 🚀
 run-pipe:
 	go run ci/main.go
+.PHONY: run-pipe
+
+# Scylla 👹
+run-scylla:
+	cd docker
+	docker-compose -f compose-scylla.yaml up -d
+	docker exec scylla-node1 cqlsh -f /mutant-data.txt
+.PHONY: run-scylla
+
+destroy-scylla:
+	cd docker
+	docker-compose kill
+	docker-compose -f compose-scylla.yaml rm -f
+.PHONY: destroy-scylla
 
 # K6 ##################
 # IN_HAR=${PWD}/tests/k6/in/new-recording_121959.har
@@ -97,7 +115,7 @@ run-pipe:
 # 	-i ${K6_DOCKER_IMAGE_NAME} run /opt/tests/k6/smoke.js
 
 # RabbitMQ
-.PHONY: deploy-rabbit
 deploy-rabbit:
   kubectl apply -f "https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml"
 	helm upgrade --install rabbitmq kubernetes/helm/rabbit --set password="guest"
+.PHONY: deploy-rabbit
