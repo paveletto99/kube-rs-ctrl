@@ -1,0 +1,6 @@
+{
+  "name": "infra",
+  "sdk": "go",
+  "source": "ci",
+  "engineVersion": "v0.13.3"
+}

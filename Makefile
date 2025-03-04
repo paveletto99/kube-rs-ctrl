@@ -7,7 +7,7 @@ KIND_KUBECONFIG_DIR=${HOME}/.kube
 KIND_KUBECONFIG_FILE=${KIND_KUBECONFIG_DIR}/kind-kubernetes-clusters-${KIND_CLUSTER_NAME}.kubeconfig
 KIND_KUBERNETES_ADMIN_USER=admin-user
 KIND_NETWORK_NAME=kind
-KIND_NODE_IMAGE=kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865
+KIND_NODE_IMAGE=kindest/node:v1.32.0@sha256:c48c62eac5da28cdadcf560d1d8616cfa6783b58f0d94cf63ad1bf49600cb027
 KIND_REGISTRY_NAME=kind-registry
 KIND_REGISTRY_PORT=5000
 WINHOME=$(shell ./tools/scripts/get_win_home.sh)
@@ -119,3 +119,16 @@ deploy-rabbit:
   kubectl apply -f "https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml"
 	helm upgrade --install rabbitmq kubernetes/helm/rabbit --set password="guest"
 .PHONY: deploy-rabbit
+
+
+# Terraform
+
+tf-validate:
+	cd ./infra/ci
+	dagger call validate --source="~/myspace/kube-rs-ctrl/terraform"
+.PHONY: tf-validate
+
+tf-plan:
+	cd ./infra/ci
+	dagger call plan --source="~/myspace/kube-rs-ctrl/terraform"
+.PHONY: tf-plan
