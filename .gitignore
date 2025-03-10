@@ -131,3 +131,13 @@ Cargo.lock
 *.pdb
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,intellij
+
+# terraform
+.terraform/
+.terraform-version
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+terraform/config
