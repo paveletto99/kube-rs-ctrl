@@ -67,6 +67,9 @@ data:
       zpages:
         endpoint: :55679
     service:
+      telemetry:
+          logs:
+              level: DEBUG
       extensions: [pprof, zpages, health_check]
       pipelines:
         traces:

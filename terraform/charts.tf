@@ -297,10 +297,33 @@ resource "kubernetes_config_map_v1" "otel_collector_config" {
                 scrape_interval: 10s
                 static_configs:
                   - targets: ["$${env:MY_POD_IP}:8888"]
-              - job_name: "rabbitmq"
+              - job_name: "rabbitmq-no-k8s-attributes"
                 scrape_interval: 20s
                 static_configs:
                   - targets: ["rabbit.rabbitmq.svc.cluster.local:15692"]
+                  scrape—configs :
+              - job-name: "rabbitmq"
+                scrape—interval: 20s
+                kubernetes—sd-configs :
+                  - role: pod
+                    namespaces :
+                      names :
+                      - rabbitmq
+                 relabel_configs :
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    separator: ;
+                    regex: rabbit-server-.*
+                    target_label: pod
+                    replacement: $$1
+                    action: replace
+                  - source_labels: [__meta_kubernetes_pod_container_name]
+                    action: keep
+                    regex: 'rabbit-server-.*'
+                  - source_labels: [__address__]
+                    action: replace
+                    regex: ([^:]+):.*
+                    replacement: $$1:15692
+                    target_label: __address__
       extensions:
         health_check:
           endpoint: $${env:MY_POD_IP}:13133
