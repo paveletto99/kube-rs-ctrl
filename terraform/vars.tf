@@ -22,8 +22,15 @@ variable "kind_registry_port" {
   description = "The port of the kind registry"
 }
 
+variable "rabbitmq_chart_version" {
+  type        = string
+  default     = "2.12.1"
+  description = "The version of the RabbitMQ chart"
+}
+
 
 terraform {
+  required_version = ">=1.3"
   required_providers {
     kind = {
       source  = "tehcyx/kind"

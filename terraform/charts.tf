@@ -31,7 +31,7 @@ resource "helm_release" "cert_manager" {
   version    = "v1.17.1"
   namespace  = "cert-manager"
 
-  set = [
+  set_list = [
     {
       name  = "installCRDs"
       value = true
@@ -73,7 +73,7 @@ resource "kubernetes_namespace" "rabbitmq" {
 # Apply the RabbitMQ Cluster Operator directly
 resource "null_resource" "rabbitmq_cluster_operator" {
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig=./config apply -f 'https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml'"
+    command = "kubectl --kubeconfig=./config apply -f 'https://github.com/rabbitmq/cluster-operator/releases/${var.rabbitmq_chart_version}/download/cluster-operator.yml'"
   }
 
   depends_on = [kind_cluster.kind]
@@ -354,7 +354,7 @@ resource "helm_release" "otel_collector" {
   version    = "0.93.0" # collector version 0.102.0
   namespace  = "observability"
 
-  set = [
+  set_list = [
     {
       name  = "configMap.enabled"
       value = true
