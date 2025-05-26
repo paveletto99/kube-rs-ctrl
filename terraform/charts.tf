@@ -379,3 +379,22 @@ resource "helm_release" "otel_collector" {
     ignore_changes = [set[0].value, set[1].value]
   }
 }
+
+##################################
+# Argo CD
+##################################
+
+resource "kubernetes_namespace" "argocd" {
+  metadata {
+    name = "argocd"
+  }
+}
+
+
+resource "null_resource" "rabbitmq_cluster_operator" {
+  provisioner "local-exec" {
+    command = "kubectl --kubeconfig=./config -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+  }
+
+  depends_on = [kind_cluster.kind]
+}
