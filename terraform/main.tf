@@ -7,17 +7,17 @@ provider "kind" {
 }
 
 locals {
-    k8s_config_path = pathexpand("${path.module}/config")
+  k8s_config_path = pathexpand("${path.module}/config")
 }
 
 resource "kind_cluster" "kind" {
-  name = var.kind_cluster_name
+  name            = var.kind_cluster_name
   kubeconfig_path = local.k8s_config_path
-  node_image = var.kind_node_image
-  wait_for_ready = true
+  node_image      = var.kind_node_image
+  wait_for_ready  = true
 
   kind_config {
-    kind = "Cluster"
+    kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
     containerd_config_patches = [
@@ -41,13 +41,13 @@ resource "kind_cluster" "kind" {
         container_port = 80
         host_port      = 80
         protocol       = "TCP"
-        listen_address  = "0.0.0.0"
+        listen_address = "0.0.0.0"
       }
       extra_port_mappings {
         container_port = 443
         host_port      = 443
         protocol       = "TCP"
-        listen_address  = "0.0.0.0"
+        listen_address = "0.0.0.0"
       }
     }
     node {

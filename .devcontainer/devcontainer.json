@@ -1,16 +1,38 @@
 {
   "name": "default",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  // "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest"
     },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12.1"
-    }
+    },
+    "ghcr.io/devcontainers/features/common-utils:1": {}
   },
   "overrideFeatureInstallOrder": [
     "ghcr.io/devcontainers/features/python",
-    "ghcr.io/devcontainers/features/docker-in-docker"
+    "ghcr.io/devcontainers/features/docker-in-docker",
+    "ghcr.io/devcontainers/features/common-utils"
+  ],
+  "postCreateCommand": "pre-commit install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.terraform",
+        "ms-python.python",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "terraform.formatOnSave": true
+      }
+    }
+  },
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ]
 }

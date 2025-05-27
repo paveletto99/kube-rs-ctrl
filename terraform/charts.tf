@@ -347,38 +347,38 @@ resource "kubernetes_config_map_v1" "otel_collector_config" {
 
 }
 
-resource "helm_release" "otel_collector" {
-  name       = "otel-collector"
-  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
-  chart      = "opentelemetry-collector"
-  version    = "0.93.0" # collector version 0.102.0
-  namespace  = "observability"
+# resource "helm_release" "otel_collector" {
+#   name       = "otel-collector"
+#   repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+#   chart      = "opentelemetry-collector"
+#   version    = "0.93.0" # collector version 0.102.0
+#   namespace  = "observability"
 
-  set_list = [
-    {
-      name  = "configMap.enabled"
-      value = true
-    },
-    {
-      name  = "configMap.name"
-      value = "otel-collector-config"
-    },
-    {
-      name  = "image.repository"
-      value = "otel/opentelemetry-collector-contrib"
-    },
-    {
-      name  = "mode"
-      value = "deployment"
-    }
-  ]
+#   set_list = [
+#     {
+#       name  = "configMap.enabled"
+#       value = true
+#     },
+#     {
+#       name  = "configMap.name"
+#       value = "otel-collector-config"
+#     },
+#     {
+#       name  = "image.repository"
+#       value = "otel/opentelemetry-collector-contrib"
+#     },
+#     {
+#       name  = "mode"
+#       value = "deployment"
+#     }
+#   ]
 
 
-  depends_on = [kind_cluster.kind, kubernetes_service_account_v1.otel_collector_account, kubernetes_config_map_v1.otel_collector_config]
-  lifecycle {
-    ignore_changes = [set[0].value, set[1].value]
-  }
-}
+#   depends_on = [kind_cluster.kind, kubernetes_service_account_v1.otel_collector_account, kubernetes_config_map_v1.otel_collector_config]
+#   lifecycle {
+#     ignore_changes = [set[0].value, set[1].value]
+#   }
+# }
 
 ##################################
 # Argo CD
@@ -391,10 +391,10 @@ resource "kubernetes_namespace" "argocd" {
 }
 
 
-resource "null_resource" "rabbitmq_cluster_operator" {
-  provisioner "local-exec" {
-    command = "kubectl --kubeconfig=./config -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
-  }
+# resource "null_resource" "rabbitmq_cluster_operator" {
+#   provisioner "local-exec" {
+#     command = "kubectl --kubeconfig=./config -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+#   }
 
-  depends_on = [kind_cluster.kind]
-}
+#   depends_on = [kind_cluster.kind]
+# }

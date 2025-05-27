@@ -14,6 +14,7 @@ WINHOME=$(shell ./tools/scripts/get_win_home.sh)
 # extract the local ip address to add host on $(CRI_ENGINE) enviroment
 LOCAL_HOST_ADDR= $(shell ip route show | grep -Pom 1 '[0-9.]{7,15}')
 # LOCAL_HOST_ADDR= $(shell ip route show | awk '{print $$9}' | xargs)
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
 
 
 CRI_ENGINE=docker
@@ -97,29 +98,6 @@ destroy-scylla:
 	docker-compose -f compose-scylla.yaml rm -f
 .PHONY: destroy-scylla
 
-# K6 ##################
-# IN_HAR=${PWD}/tests/k6/in/new-recording_121959.har
-# OUT_SCRIPT=${PWD}/tests/k6/autogen.js
-
-# har-to-k6:
-# 	npx har-to-k6 ${IN_HAR} -o ${OUT_SCRIPT}
-
-# smoke-test:
-# 	$(CRI_ENGINE) run -v `pwd`:/opt \
-# 	--add-host=${K6_API_HOSTNAME}:${LOCAL_HOST_ADDR} \
-# 	-e API_HOSTNAME=${K6_API_HOSTNAME} \
-# 	-e USER_NAME=msAppUser \
-# 	-e USER_PWD=msAppUser \
-# 	--rm \
-# 	-t \
-# 	-i ${K6_DOCKER_IMAGE_NAME} run /opt/tests/k6/smoke.js
-
-# RabbitMQ
-deploy-rabbit:
-  kubectl apply -f "https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml"
-	helm upgrade --install rabbitmq kubernetes/helm/rabbit --set password="guest"
-.PHONY: deploy-rabbit
-
 
 # Terraform
 
@@ -132,3 +110,26 @@ tf-plan:
 	cd ./infra/ci
 	dagger call plan --source="~/myspace/kube-rs-ctrl/terraform"
 .PHONY: tf-plan
+
+tf-state-enc:
+	sops --encrypt terraform/terraform.tfstate > terraform/terraform.tfstate.enc
+	if [ -f terraform/terraform.tfstate ]; then\
+		rm terraform/terraform.tfstate;\
+	fi
+	echo "🔒 Terraform state encrypted."
+.PHONY: tf-state-enc
+
+tf-state-dec:
+	SOPS_AGE_KEY_FILE=${SOPS_AGE_KEY_FILE} sops --decrypt terraform/terraform.tfstate.enc > terraform/terraform.tfstate
+	echo "🔓 Terraform state decrypted."
+.PHONY: tf-state-dec
+
+gen-age-key:
+	if [ ! -d ~/.config/sops/age ]; then\
+		mkdir -p ~/.config/sops/age;\
+	fi
+	if [ -f ${SOPS_AGE_KEY_FILE} ]; then\
+		rm ${SOPS_AGE_KEY_FILE};\
+	fi
+	age-keygen -o ${SOPS_AGE_KEY_FILE}
+# ${SOPS_AGE_KEY_FILE} | grep public

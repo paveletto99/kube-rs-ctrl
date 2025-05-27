@@ -1,0 +1,39 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      run: terraform fmt -recursive
+    lint:
+      run: tflint
+    check_state:
+      run: |
+        if [ -f "terraform.tfstate" ]; then
+          echo "❌ Unencrypted terraform.tfstate found! Use sops to encrypt it before committing."
+          exit 1
+        fi
+
+pre-push:
+  parallel: true
+  commands:
+    validate:
+      run: terraform validate
+    tfsec:
+      run: tfsec .
+    checkov:
+      run: checkov -d .
+    secrets:
+      run: trufflehog --regex --entropy=False .
+    encrypt_state:
+      run: |
+        if [ -f "terraform.tfstate" ]; then
+          make tf-state-enc
+        fi
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        if ! grep -qE "^(feat|fix|chore|docs|style|refactor|perf|test|ci|build|revert)(\(.+\))?: .{1,72}$" $1; then
+          echo "❌ Commit message does not follow Conventional Commits"
+          exit 1
+        fi

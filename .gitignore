@@ -136,8 +136,7 @@ Cargo.lock
 .terraform/
 .terraform-version
 .terraform.lock.hcl
-*.tfstate
-*.tfstate.*
 *.tfvars
 
 terraform/config
+terraform/terraform.tfstate
