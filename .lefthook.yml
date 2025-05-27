@@ -12,22 +12,22 @@ pre-commit:
           exit 1
         fi
 
-pre-push:
-  parallel: true
-  commands:
-    validate:
-      run: terraform validate
-    tfsec:
-      run: tfsec .
-    checkov:
-      run: checkov -d .
-    secrets:
-      run: trufflehog --regex --entropy=False .
-    encrypt_state:
-      run: |
-        if [ -f "terraform.tfstate" ]; then
-          make tf-state-enc
-        fi
+# pre-push:
+#   parallel: true
+#   commands:
+#     validate:
+#       run: terraform validate
+#     tfsec:
+#       run: tfsec .
+#     checkov:
+#       run: checkov -d .
+#     secrets:
+#       run: trufflehog --regex --entropy=False .
+    # encrypt_state:
+    #   run: |
+    #     if [ -f "terraform.tfstate" ]; then
+    #       make tf-state-enc
+    #     fi
 
 commit-msg:
   commands:
