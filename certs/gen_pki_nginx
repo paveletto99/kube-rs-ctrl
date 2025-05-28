@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Generates a root CA, an intermediate CA and a server certificate
+# for an Nginx container.  Default hostname: host-xxxx.local
+# Usage: ./gen_pki.sh [hostname]
+
+set -euo pipefail
+HOSTNAME="${1:-host-xxxx.local}"
+WORKDIR="$(pwd)/pki"                       # everything lives here
+ROOTDIR="$WORKDIR/root"
+INTDIR="$WORKDIR/intermediate"
+NGINX_SSL_DIR="$WORKDIR/nginx"            # <-- mount this into /etc/nginx/ssl
+
+umask 077
+mkdir -p "$ROOTDIR" "$INTDIR"/{csr,certs} "$NGINX_SSL_DIR"
+
+echo "▶ 1. Root CA"
+openssl genrsa -out "$ROOTDIR/ca.key.pem" 4096
+openssl req  -x509 -new -nodes -key "$ROOTDIR/ca.key.pem" \
+        -sha256 -days 3650 \
+        -subj "/C=XX/O=LocalDev/CN=LocalDev Root CA" \
+        -out  "$ROOTDIR/ca.cert.pem"
+
+echo "▶ 2. Intermediate CA"
+openssl genrsa -out "$INTDIR/intermediate.key.pem" 4096
+openssl req -new -key "$INTDIR/intermediate.key.pem" \
+        -subj "/C=XX/O=LocalDev/CN=LocalDev Intermediate CA" \
+        -out  "$INTDIR/intermediate.csr.pem"
+
+openssl x509 -req -in "$INTDIR/intermediate.csr.pem" \
+        -CA      "$ROOTDIR/ca.cert.pem" \
+        -CAkey   "$ROOTDIR/ca.key.pem" \
+        -CAcreateserial \
+        -sha256 -days 1825 \
+        -extfile <(printf "basicConstraints=CA:TRUE,pathlen:0") \
+        -out "$INTDIR/intermediate.cert.pem"
+
+cat "$INTDIR/intermediate.cert.pem" "$ROOTDIR/ca.cert.pem" \
+    > "$INTDIR/ca-chain.cert.pem"
+
+echo "▶ 3. Leaf certificate for $HOSTNAME"
+openssl genrsa -out "$NGINX_SSL_DIR/$HOSTNAME.key.pem" 2048
+
+# one-shot openssl.cnf that injects SAN = hostname
+openssl req -new -key "$NGINX_SSL_DIR/$HOSTNAME.key.pem" \
+        -subj "/C=XX/O=LocalDev/CN=$HOSTNAME" \
+        -reqexts san \
+        -config <(cat /etc/ssl/openssl.cnf \
+            <(printf "\n[san]\nsubjectAltName=DNS:$HOSTNAME")) \
+        -out "$INTDIR/$HOSTNAME.csr.pem"
+
+openssl x509 -req -in "$INTDIR/$HOSTNAME.csr.pem" \
+        -CA      "$INTDIR/intermediate.cert.pem" \
+        -CAkey   "$INTDIR/intermediate.key.pem" \
+        -CAcreateserial \
+        -sha256 -days 365 \
+        -extfile <(printf "subjectAltName=DNS:$HOSTNAME") \
+        -out "$NGINX_SSL_DIR/$HOSTNAME.cert.pem"
+
+cat "$NGINX_SSL_DIR/$HOSTNAME.cert.pem" "$INTDIR/intermediate.cert.pem" \
+    > "$NGINX_SSL_DIR/$HOSTNAME.fullchain.pem"
+
+# convenience copy of the root for clients to trust
+cp "$ROOTDIR/ca.cert.pem" "$NGINX_SSL_DIR/root-ca.pem"
+
+echo
+echo "All done."
+echo "Mount \"$NGINX_SSL_DIR\" into your Nginx container, e.g.:"
+echo
+cat <<EOF
+docker run -d --name nginx-tls \\
+  -v $NGINX_SSL_DIR:/etc/nginx/ssl:ro \\
+  -v \$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro \\
+  -p 443:443 nginx:latest
+EOF
